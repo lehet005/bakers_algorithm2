@@ -4,11 +4,43 @@ defmodule Fib do
 	def fib(n) do fib(n-1) + fib(n-2) end
 end
 
+defmodule Init do
+	def start() do #num_customers, num_servers
+		manager = spawn(fn -> Manager.manage([],[]) end)
+		Process.register(manager, :prime_manager)
+		Server.start()
+		Server.start()
+		Server.start()
+		Server.start()
+		Customer.start()
+		Customer.start()
+		Customer.start()
+		Customer.start()
+		##Make list of servers
+		##Start manager
+		##call manage([], servers)
+		##Make list of customer
+	end
+end
+
+
 defmodule Manager do
-	def manage([],[]) do
-		receive do
-			{:add_customer, PID} -> manage([PID],[])
-			{:add_server, PID} -> manage([],[PID])
+	def manage(customers, servers) do
+		#IO.puts("This hits manage with #{customers} and #{servers}")
+		if (customers !== [] and servers !== []) do 
+			[a_customer | rest_customers] = customers
+			[a_server | rest_servers] = servers
+			send(a_customer, {:server, a_server})
+			manage(rest_customers, rest_servers)
+		else
+			IO.puts("Manager moves to recieve block")
+			receive do
+				{:add_customer, idnum} -> 
+					IO.puts("Manager successfully recieved customer.")
+					manage((customers ++ [idnum]),servers)			
+				{:done, idnum} -> manage(customers,(servers ++ [idnum])) ##server says it's done.
+				{_, _} -> IO.puts("fuck.")
+			end
 		end
 	end
 end
@@ -19,34 +51,37 @@ defmodule Customer do
     		:timer.sleep(zzz)
     		customer = spawn(&__MODULE__.loop/0)
     		send(customer, {:wake_up})
+		#IO.puts("Customer lives.")
   	end
   	def loop do
     		receive do
       			{:wake_up} ->
-        			send(:manager, {:add_customer, self()})
+        			send(:prime_manager, {:add_customer, self()})
         			loop
       			{:fib_result, result} ->
-        			IO.puts("Fib result: #{result} for #{inspect self()}")
-      			{:fib, sender} ->
+        			IO.puts("Fib result: ")
+      			{:server, server} ->
         			:random.seed(:os.timestamp)
-        			fib = (:random.uniform(5) + 10)
-				IO.puts("Random fib: #{fib}")
-        			send(sender, {:fib, self(), fib})
+        			fib = (:random.uniform(10) + 30)
+				#IO.puts("Random fib: #{fib}")
+        			send(server, {:compute_fib, self(), fib})
         			loop
-    			end
-  		end
+		end
 	end
+end
 
 defmodule Server do
  	def start do
-    		server = spawn(&__MODULE__.loop/0)
-   	 	send(:manager, {:add_server, server})
+		IO.puts("Server lives.")
+    		spawn(&__MODULE__.loop/0)
+   	 	send(:prime_manager, {:done, self()})
   	end
   	def loop do
     		receive do
       			{:compute_fib, customer, fib} ->
+				IO.puts("Server recieves fib request")
         			send(customer, {:fib_result, Fib.fib(fib)})
-        			send(:manager, {:add_server, self()})
+        			send(:prime_manager, {:done, self()})
         			loop
     		end
   	end
