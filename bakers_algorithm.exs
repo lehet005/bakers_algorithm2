@@ -8,14 +8,16 @@ defmodule Init do
 	def start() do #num_customers, num_servers
 		manager = spawn(fn -> Manager.manage([],[]) end)
 		Process.register(manager, :prime_manager)
-		Server.start()
-		Server.start()
-		Server.start()
-		Server.start()
 		Customer.start()
 		Customer.start()
 		Customer.start()
 		Customer.start()
+		Customer.start()
+		Server.start()
+		Server.start()
+		Server.start()
+		Server.start()
+		
 		##Make list of servers
 		##Start manager
 		##call manage([], servers)
@@ -26,7 +28,7 @@ end
 
 defmodule Manager do
 	def manage(customers, servers) do
-		#IO.puts("This hits manage with #{customers} and #{servers}")
+		IO.puts("Manager")
 		if (customers !== [] and servers !== []) do 
 			[a_customer | rest_customers] = customers
 			[a_server | rest_servers] = servers
@@ -38,8 +40,9 @@ defmodule Manager do
 				{:add_customer, idnum} -> 
 					IO.puts("Manager successfully recieved customer.")
 					manage((customers ++ [idnum]),servers)			
-				{:done, idnum} -> manage(customers,(servers ++ [idnum])) ##server says it's done.
-				{_, _} -> IO.puts("fuck.")
+				{:done, idnum} ->
+					IO.puts("Manager successfully recieved server.")
+					manage(customers,(servers ++ [idnum]))
 			end
 		end
 	end
@@ -59,11 +62,11 @@ defmodule Customer do
         			send(:prime_manager, {:add_customer, self()})
         			loop
       			{:fib_result, result} ->
-        			IO.puts("Fib result: ")
+        			IO.puts("Fib result: #{result}")
       			{:server, server} ->
         			:random.seed(:os.timestamp)
-        			fib = (:random.uniform(10) + 30)
-				#IO.puts("Random fib: #{fib}")
+        			fib = (:random.uniform(10))
+				IO.puts("Random fib: #{fib}")
         			send(server, {:compute_fib, self(), fib})
         			loop
 		end
@@ -73,11 +76,14 @@ end
 defmodule Server do
  	def start do
 		IO.puts("Server lives.")
-    		spawn(&__MODULE__.loop/0)
-   	 	send(:prime_manager, {:done, self()})
+    		server = spawn(&__MODULE__.loop/0)
+   	 	send(server, {:wake_up})
   	end
   	def loop do
     		receive do
+			{:wake_up} -> 
+				send(:prime_manager, {:done, self()})
+				loop
       			{:compute_fib, customer, fib} ->
 				IO.puts("Server recieves fib request")
         			send(customer, {:fib_result, Fib.fib(fib)})
