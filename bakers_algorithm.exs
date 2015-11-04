@@ -5,24 +5,31 @@ defmodule Fib do
 end
 
 defmodule Init do
-	def start() do #num_customers, num_servers
+	def init(num_servers) do
 		manager = spawn(fn -> Manager.manage([],[]) end)
 		Process.register(manager, :prime_manager)
-		Customer.start()
-		Customer.start()
-		Customer.start()
-		Customer.start()
-		Customer.start()
-		Server.start()
-		Server.start()
-		Server.start()
-		Server.start()
+		IO.puts("Starting Manager, adding ${num_servers} servers.")
+		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(&1))
 		
-		##Make list of servers
-		##Start manager
-		##call manage([], servers)
-		##Make list of customer
+	end 
+
+	def add_customers(num_customers) do
+		Enum.map 0..num_customers-1, &(dumb_customer_spawn_hack(&1))
+		
 	end
+
+	def add_servers(num_servers) do
+		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(&1))
+		
+	end
+
+	def dumb_customer_spawn_hack(x) do
+		Customer.start()
+	end 
+		
+	def dumb_server_spawn_hack(x) do
+		Server.start()
+	end 
 end
 
 
@@ -50,7 +57,7 @@ end
 
 defmodule Customer do
   	def start do
-    		zzz = :random.uniform(1000)
+    		zzz = :random.uniform(2000)
     		:timer.sleep(zzz)
     		customer = spawn(&__MODULE__.loop/0)
     		send(customer, {:wake_up})
@@ -65,8 +72,7 @@ defmodule Customer do
         			IO.puts("Fib result: #{result}")
       			{:server, server} ->
         			:random.seed(:os.timestamp)
-        			fib = (:random.uniform(10))
-				IO.puts("Random fib: #{fib}")
+        			fib = (:random.uniform(5) + 30)
         			send(server, {:compute_fib, self(), fib})
         			loop
 		end
