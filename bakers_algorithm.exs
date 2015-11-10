@@ -38,6 +38,7 @@ defmodule Init do
 	end
 end
 
+#This is a simple module example... for testing purposes
 defmodule Geometry do
   def area_loop do
     receive do
