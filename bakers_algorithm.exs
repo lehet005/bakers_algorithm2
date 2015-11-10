@@ -4,39 +4,57 @@ defmodule Fib do
 	def fib(n) do fib(n-1) + fib(n-2) end
 end
 
+#Init.init([:a@acrylic, :b@acrylic, :c@acrylic], 5)
+
 defmodule Init do
-	def init(num_servers) do
+	def init(host_list, num_servers) do
 		manager = spawn(fn -> Manager.manage([],[]) end)
-		Process.register(manager, :prime_manager)
+		:global.register_name(:prime_manager, manager)
 		IO.puts("Starting Manager, adding ${num_servers} servers.")
-		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(&1))
-		
-	end 
+		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(host_list, &1))
 
-	def add_customers(num_customers) do
-		Enum.map 0..num_customers-1, &(dumb_customer_spawn_hack(&1))
-		
 	end
 
-	def add_servers(num_servers) do
-		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(&1))
-		
+	def add_c(host_list, num_customers) do
+		Enum.map 0..num_customers-1, &(dumb_customer_spawn_hack(host_list, &1))
+
 	end
 
-	def dumb_customer_spawn_hack(x) do
-		Customer.start()
-	end 
-		
-	def dumb_server_spawn_hack(x) do
-		Server.start()
-	end 
+	def add_s(host_list, num_servers) do
+		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(host_list, &1))
+
+	end
+
+	def dumb_customer_spawn_hack(host_list, x) do
+		host_num = :random.uniform(Enum.count(host_list) - 1)
+		host = Enum.at(host_list, host_num,0)
+		Node.spawn(host, Customer, :start, [])
+	end
+
+	def dumb_server_spawn_hack(host_list, x) do
+		host_num = :random.uniform(Enum.count(host_list) - 1)
+		host = Enum.at(host_list, host_num, 0)
+		Node.spawn(host, Server, :start, [])
+	end
 end
 
+defmodule Geometry do
+  def area_loop do
+    receive do
+      {:rectangle, w, h} ->
+        IO.puts("Area = #{w * h}")
+        area_loop()
+      {:circle, r} ->
+        IO.puts("Area = #{3.14 * r * r}")
+        area_loop()
+    end
+  end
+end
 
 defmodule Manager do
 	def manage(customers, servers) do
 		IO.puts("Manager")
-		if (customers !== [] and servers !== []) do 
+		if (customers !== [] and servers !== []) do
 			[a_customer | rest_customers] = customers
 			[a_server | rest_servers] = servers
 			send(a_customer, {:server, a_server})
@@ -44,9 +62,9 @@ defmodule Manager do
 		else
 			IO.puts("Manager moves to recieve block")
 			receive do
-				{:add_customer, idnum} -> 
+				{:add_customer, idnum} ->
 					IO.puts("Manager successfully recieved customer.")
-					manage((customers ++ [idnum]),servers)			
+					manage((customers ++ [idnum]),servers)
 				{:done, idnum} ->
 					IO.puts("Manager successfully recieved server.")
 					manage(customers,(servers ++ [idnum]))
@@ -57,8 +75,7 @@ end
 
 defmodule Customer do
   	def start do
-    		zzz = :random.uniform(2000)
-    		:timer.sleep(zzz)
+    		:timer.sleep(:random.uniform(2000))
     		customer = spawn(&__MODULE__.loop/0)
     		send(customer, {:wake_up})
 		#IO.puts("Customer lives.")
@@ -87,7 +104,7 @@ defmodule Server do
   	end
   	def loop do
     		receive do
-			{:wake_up} -> 
+			{:wake_up} ->
 				send(:prime_manager, {:done, self()})
 				loop
       			{:compute_fib, customer, fib} ->
@@ -98,4 +115,3 @@ defmodule Server do
     		end
   	end
 end
-
