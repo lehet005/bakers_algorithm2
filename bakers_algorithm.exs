@@ -3,40 +3,51 @@ defmodule Fib do
 	def fib(1) do 1 end
 	def fib(n) do fib(n-1) + fib(n-2) end
 end
+#A horrible experiment in elixir
+#Henry Fellows, Peter Hanson, and Mark Lehet
 
-#Init.init([:a@acrylic, :b@acrylic, :c@acrylic], 5)
+#Commands:
+##Terminal 1##
+#$ iex --sname a --cookie pass bakers_algorithm.exs
+##Terminal 2##
+#$ iex --sname b --cookie pass bakers_algorithm.exs
+#> Node.connect([:a@host-name])
+#> Init.init([:a@host-name, :b@host-name], 5)
+#> Init.add_c([:a@host-name, :b@host-name], 20)
 
 defmodule Init do
 	def init(host_list, num_servers) do
 		manager = spawn(fn -> Manager.manage([],[]) end)
 		:global.register_name(:prime_manager, manager)
-		IO.puts("Starting Manager, adding ${num_servers} servers.")
-		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(host_list, &1))
+		IO.puts("Starting Manager, adding #{num_servers} servers.")
+		add_s(host_list, num_servers)
 
 	end
+
+	#Adds customers dynamically.
+	##basically, we couldn't find a repeat, so we use a map to do something repeatedly
 
 	def add_c(host_list, num_customers) do
-		Enum.map 0..num_customers-1, &(dumb_customer_spawn_hack(host_list, &1))
-
+		Enum.map 0..num_customers-1, &(customer_spawn_hack(host_list, &1))
 	end
 
+	#Adds servers dynamically.
+	##basically, we couldn't find a repeat, so we use a map to do something repeatedly
 	def add_s(host_list, num_servers) do
-		Enum.map 0..num_servers-1, &(dumb_server_spawn_hack(host_list, &1))
-
+		Enum.map 0..num_servers-1, &(server_spawn_hack(host_list, &1))
 	end
 
-	def dumb_customer_spawn_hack(host_list, x) do
-		host_num = :random.uniform(Enum.count(host_list) - 1)
+	def customer_spawn_hack(host_list, x) do
+		host_num = :random.uniform(Enum.count(host_list)) - 1
 		host = Enum.at(host_list, host_num,0)
 		Node.spawn(host, Customer, :start, [])
 	end
 
 	def dumb_server_spawn_hack(host_list, x) do
-		host_num = :random.uniform(Enum.count(host_list) - 1)
+		host_num = :random.uniform(Enum.count(host_list)) - 1
 		host = Enum.at(host_list, host_num, 0)
 		Node.spawn(host, Server, :start, [])
 	end
-end
 
 #This is a simple module example... for testing purposes
 defmodule Geometry do
@@ -50,13 +61,22 @@ defmodule Geometry do
         area_loop()
     end
   end
+endst, host_num, 0)
+		Node.spawn(host, Customer, :start, [])
+	end
+
+	def server_spawn_hack(host_list, x) do
+		host_num = :random.uniform(Enum.count(host_list)) - 1
+		host = Enum.at(host_list, host_num, 0)
+		Node.spawn(host, Server, :start, [])
+	end
 end
 
 defmodule Manager do
 	def manage(customers, servers) do
 		IO.puts("Manager")
 		if (customers !== [] and servers !== []) do
-			[a_customer | rest_customers] = customers
+			[a_customer | restname(:prime_manager, manager)_customers] = customers
 			[a_server | rest_servers] = servers
 			send(a_customer, {:server, a_server})
 			manage(rest_customers, rest_servers)
@@ -84,7 +104,7 @@ defmodule Customer do
   	def loop do
     		receive do
       			{:wake_up} ->
-        			send(:prime_manager, {:add_customer, self()})
+        			send(:global.whereis_name(:prime_manager), {:add_customer, self()})
         			loop
       			{:fib_result, result} ->
         			IO.puts("Fib result: #{result}")
@@ -106,12 +126,12 @@ defmodule Server do
   	def loop do
     		receive do
 			{:wake_up} ->
-				send(:prime_manager, {:done, self()})
+				send(:global.whereis_name(:prime_manager), {:done, self()})
 				loop
       			{:compute_fib, customer, fib} ->
 				IO.puts("Server recieves fib request")
         			send(customer, {:fib_result, Fib.fib(fib)})
-        			send(:prime_manager, {:done, self()})
+        			send(:global.whereis_name(:prime_manager), {:done, self()})
         			loop
     		end
   	end
